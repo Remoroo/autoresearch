@@ -23,11 +23,20 @@ import rustbpe
 import tiktoken
 import torch
 
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+DEVICE = get_device()
+
 # ---------------------------------------------------------------------------
 # Constants (fixed, do not modify)
 # ---------------------------------------------------------------------------
 
-MAX_SEQ_LEN = 2048       # context length
+MAX_SEQ_LEN = 1024 if DEVICE == "mps" else 2048       # context length
 TIME_BUDGET = 300        # training time budget in seconds (5 minutes)
 EVAL_TOKENS = 40 * 524288  # number of tokens for val eval
 
@@ -245,10 +254,10 @@ class Tokenizer:
         return self.enc.decode(ids)
 
 
-def get_token_bytes(device="cpu"):
+def get_token_bytes(device=DEVICE):
     path = os.path.join(TOKENIZER_DIR, "token_bytes.pt")
     with open(path, "rb") as f:
-        return torch.load(f, map_location=device)
+        return torch.load(f, map_location=device, weights_only=True)
 
 
 def _document_batches(split, tokenizer_batch_size=128):
@@ -294,8 +303,8 @@ def make_dataloader(tokenizer, B, T, split, buffer_size=1000):
 
     # Pre-allocate buffers: [inputs (B*T) | targets (B*T)]
     row_buffer = torch.empty((B, row_capacity), dtype=torch.long)
-    cpu_buffer = torch.empty(2 * B * T, dtype=torch.long, pin_memory=True)
-    gpu_buffer = torch.empty(2 * B * T, dtype=torch.long, device="cuda")
+    cpu_buffer = torch.empty(2 * B * T, dtype=torch.long, pin_memory=(DEVICE=="cuda"))
+    gpu_buffer = torch.empty(2 * B * T, dtype=torch.long, device=DEVICE)
     cpu_inputs = cpu_buffer[:B * T].view(B, T)
     cpu_targets = cpu_buffer[B * T:].view(B, T)
     inputs = gpu_buffer[:B * T].view(B, T)
@@ -348,7 +357,7 @@ def evaluate_bpb(model, tokenizer, batch_size):
     are excluded from both sums.
     Uses fixed MAX_SEQ_LEN so results are comparable across configs.
     """
-    token_bytes = get_token_bytes(device="cuda")
+    token_bytes = get_token_bytes(device=DEVICE)
     val_loader = make_dataloader(tokenizer, batch_size, MAX_SEQ_LEN, "val")
     steps = EVAL_TOKENS // (batch_size * MAX_SEQ_LEN)
     total_nats = 0.0
