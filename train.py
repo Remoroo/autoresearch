@@ -70,6 +70,18 @@ def apply_rotary_emb(x, cos, sin):
     return torch.cat([y1, y2], 3)
 
 
+# Cached causal sliding-window masks for SDPA fallback (avoids per-step alloc on MPS)
+_sdpa_mask_cache: dict = {}
+
+def _causal_window_mask(T: int, window: int, device):
+    key = (T, window)
+    if key not in _sdpa_mask_cache:
+        mask = torch.ones(T, T, dtype=torch.bool, device=device).tril()
+        mask = torch.triu(mask, diagonal=-(window - 1))
+        _sdpa_mask_cache[key] = mask.view(1, 1, T, T)
+    return _sdpa_mask_cache[key]
+
+
 class CausalSelfAttention(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
@@ -105,23 +117,16 @@ class CausalSelfAttention(nn.Module):
         if fa3 is not None:
             y = fa3.flash_attn_func(q, k, v, causal=True, window_size=window_size)
         else:
-            # Fallback to SDPA (Memory intensive, slower, but works on MPS/CPU)
-            # PyTorch SDPA expects [B, N, T, head_dim] instead of FA3's [B, T, N, head_dim]
+            # Fallback to SDPA (works on MPS/CPU). Cache sliding-window masks to avoid rebuild every step.
             q_sdpa = q.transpose(1, 2)
             k_sdpa = k.transpose(1, 2)
             v_sdpa = v.transpose(1, 2)
-            
-            # Handle sliding window if specified
             window = window_size[0]
             if window >= 0 and window < T:
-                 # Create a sliding window causal mask (boolean, to save memory)
-                 mask = torch.ones(T, T, dtype=torch.bool, device=q.device).tril()
-                 mask = torch.triu(mask, diagonal=-(window - 1))
-                 mask = mask.view(1, 1, T, T) 
-                 y = F.scaled_dot_product_attention(q_sdpa, k_sdpa, v_sdpa, attn_mask=mask, is_causal=False)
+                mask = _causal_window_mask(T, window, q.device)
+                y = F.scaled_dot_product_attention(q_sdpa, k_sdpa, v_sdpa, attn_mask=mask, is_causal=False)
             else:
-                 y = F.scaled_dot_product_attention(q_sdpa, k_sdpa, v_sdpa, is_causal=True)
-            
+                y = F.scaled_dot_product_attention(q_sdpa, k_sdpa, v_sdpa, is_causal=True)
             y = y.transpose(1, 2)
 
         y = y.contiguous().view(B, T, -1)
@@ -476,7 +481,7 @@ HEAD_DIM = 128          # target head dimension for attention
 WINDOW_PATTERN = "SSSL" # sliding window pattern: L=full, S=half context
 
 # Optimization
-TOTAL_BATCH_SIZE = 2**19 # ~524K tokens per optimizer step
+TOTAL_BATCH_SIZE = 2**14 if DEVICE == "mps" else 2**19  # MPS: ~16K tokens, CUDA: ~524K tokens
 EMBEDDING_LR = 0.6      # learning rate for token embeddings (Adam)
 UNEMBEDDING_LR = 0.004  # learning rate for lm_head (Adam)
 MATRIX_LR = 0.04        # learning rate for matrix parameters (Muon)
@@ -489,7 +494,7 @@ FINAL_LR_FRAC = 0.0     # final LR as fraction of initial
 
 # Model size
 DEPTH = 8               # number of transformer layers
-DEVICE_BATCH_SIZE = 8 if DEVICE == "mps" else 128  # per-device batch size (reduce if OOM)
+DEVICE_BATCH_SIZE = 16 if DEVICE == "mps" else 128  # per-device batch size (reduce if OOM)
 
 # ---------------------------------------------------------------------------
 # Setup: tokenizer, model, optimizer, dataloader
@@ -552,9 +557,14 @@ optimizer = model.setup_optimizer(
 
 model = torch.compile(model, dynamic=False) if DEVICE == "cuda" else model
 
+if DEVICE == "mps":
+    torch.mps.empty_cache()  # Clean slate before training for more predictable memory
+
 train_loader = make_dataloader(tokenizer, DEVICE_BATCH_SIZE, MAX_SEQ_LEN, "train")
 x, y, epoch = next(train_loader)  # prefetch first batch
 
+# On MPS, log less often to reduce Python/terminal overhead
+LOG_EVERY_N_STEPS = 20 if DEVICE == "mps" else 1
 print(f"Time budget: {TIME_BUDGET}s")
 print(f"Gradient accumulation steps: {grad_accum_steps}")
 
@@ -638,7 +648,8 @@ while True:
     mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE / dt / H100_BF16_PEAK_FLOPS
     remaining = max(0, TIME_BUDGET - total_training_time)
 
-    print(f"\rstep {step:05d} ({pct_done:.1f}%) | loss: {debiased_smooth_loss:.6f} | lrm: {lrm:.2f} | dt: {dt*1000:.0f}ms | tok/sec: {tok_per_sec:,} | mfu: {mfu:.1f}% | epoch: {epoch} | remaining: {remaining:.0f}s    ", end="", flush=True)
+    if step % LOG_EVERY_N_STEPS == 0 or step < 3 or remaining <= 0:
+        print(f"\rstep {step:05d} ({pct_done:.1f}%) | loss: {debiased_smooth_loss:.6f} | lrm: {lrm:.2f} | dt: {dt*1000:.0f}ms | tok/sec: {tok_per_sec:,} | mfu: {mfu:.1f}% | epoch: {epoch} | remaining: {remaining:.0f}s    ", end="", flush=True)
 
     # GC management (Python's GC causes ~500ms stalls)
     if step == 0:

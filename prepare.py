@@ -37,7 +37,7 @@ DEVICE = get_device()
 # ---------------------------------------------------------------------------
 
 MAX_SEQ_LEN = 1024 if DEVICE == "mps" else 2048       # context length
-TIME_BUDGET = 300        # training time budget in seconds (5 minutes)
+TIME_BUDGET = 3600        # training time budget in seconds (60 minutes)
 EVAL_TOKENS = 40 * 524288  # number of tokens for val eval
 
 # ---------------------------------------------------------------------------
