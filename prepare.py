@@ -32,13 +32,22 @@ def get_device():
 
 DEVICE = get_device()
 
+# Small-model preset: set REMOROO_SMALL_MODEL=1 for lower memory and faster runs.
+# Uses shorter context, fewer eval tokens, and (optional) smaller vocab when training tokenizer.
+SMALL_MODEL = os.environ.get("REMOROO_SMALL_MODEL", "").lower() in ("1", "true", "yes")
+
 # ---------------------------------------------------------------------------
 # Constants (fixed, do not modify)
 # ---------------------------------------------------------------------------
 
-MAX_SEQ_LEN = 1024 if DEVICE == "mps" else 2048       # context length
+if SMALL_MODEL:
+    MAX_SEQ_LEN = 256       # much shorter context for small models / limited hardware
+    EVAL_TOKENS = 40 * 8192 # ~327K tokens for validation (faster eval)
+else:
+    MAX_SEQ_LEN = 1024 if DEVICE == "mps" else 2048
+    EVAL_TOKENS = 40 * 524288
+
 TIME_BUDGET = 3600        # training time budget in seconds (60 minutes)
-EVAL_TOKENS = 40 * 524288  # number of tokens for val eval
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -51,7 +60,8 @@ BASE_URL = "https://huggingface.co/datasets/karpathy/climbmix-400b-shuffle/resol
 MAX_SHARD = 6542 # the last datashard is shard_06542.parquet
 VAL_SHARD = MAX_SHARD  # pinned validation shard (shard_06542)
 VAL_FILENAME = f"shard_{VAL_SHARD:05d}.parquet"
-VOCAB_SIZE = 8192
+# For small models you can lower VOCAB_SIZE (4096, 2048, 1024) and re-run prepare.py to train a new tokenizer.
+VOCAB_SIZE = 4096 if SMALL_MODEL else 8192
 
 # BPE split pattern (GPT-4 style, with \p{N}{1,2} instead of {1,3})
 SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,2}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""

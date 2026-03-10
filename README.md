@@ -37,6 +37,8 @@ uv run train.py
 
 If the above commands all work ok, your setup is working and you can go into autonomous research mode.
 
+**Small-model preset.** For much smaller models and lower memory (e.g. laptops, quick iteration), set `REMOROO_SMALL_MODEL=1` before running. This uses shorter context (256), fewer eval tokens, smaller vocab (4096 when you re-run `prepare.py`), depth 4, full attention (`L`), and batch size 2^14. Re-run `uv run prepare.py` with the env var set to train a 4096-vocab tokenizer. For even lower entropy and better results with small models, consider using a narrower dataset (e.g. [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories)) and lowering vocab size further (2048, 1024) or byte-level (256).
+
 **Platforms support**. This fork adds native **Apple Silicon (MPS)** support. It includes:
 - **Dynamic Device Detection**: Runs on CUDA, MPS, or CPU automatically.
 - **Flash Attention 3 Fallback**: Uses a memory-optimized SDPA fallback for Mac.
