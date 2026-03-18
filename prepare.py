@@ -373,20 +373,26 @@ def make_dataloader(tokenizer, B, T, split, buffer_size=1000):
 # ---------------------------------------------------------------------------
 
 @torch.no_grad()
-def evaluate_bpb(model, tokenizer, batch_size):
+def evaluate_bpb(model, tokenizer, batch_size, max_seconds=None):
     """
     Bits per byte (BPB): vocab size-independent evaluation metric.
     Sums per-token cross-entropy (in nats), sums target byte lengths,
     then converts nats/byte to bits/byte. Special tokens (byte length 0)
     are excluded from both sums.
     Uses fixed MAX_SEQ_LEN so results are comparable across configs.
+
+    If max_seconds is set, stops early when elapsed time exceeds it.
+    Partial evals are valid but less precise; full evals use all EVAL_TOKENS.
     """
     token_bytes = get_token_bytes(device=DEVICE)
     val_loader = make_dataloader(tokenizer, batch_size, MAX_SEQ_LEN, "val")
     steps = EVAL_TOKENS // (batch_size * MAX_SEQ_LEN)
     total_nats = 0.0
     total_bytes = 0
+    t0 = time.time()
     for _ in range(steps):
+        if max_seconds is not None and (time.time() - t0) >= max_seconds:
+            break
         x, y, _ = next(val_loader)
         loss_flat = model(x, y, reduction='none').view(-1)
         y_flat = y.view(-1)
@@ -394,6 +400,8 @@ def evaluate_bpb(model, tokenizer, batch_size):
         mask = nbytes > 0
         total_nats += (loss_flat * mask).sum().item()
         total_bytes += nbytes.sum().item()
+    if total_bytes == 0:
+        return float("nan")
     return total_nats / (math.log(2) * total_bytes)
 
 # ---------------------------------------------------------------------------

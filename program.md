@@ -8,10 +8,10 @@ Single source of truth for runtime parameters. Edit here; all code and docs read
 
 | Parameter     | Value | Description                                  |
 |---------------|-------|----------------------------------------------|
-| TIME_BUDGET   | 3600  | Training time budget in seconds (60 minutes) |
+| TIME_BUDGET   | 1200  | Training time budget in seconds (20 minutes) |
 
 ```
-TIME_BUDGET=3600
+TIME_BUDGET=1200
 ```
 <!-- Edit the line above to change the training time budget. -->
 
@@ -26,7 +26,7 @@ To set up a new experiment, work with the user to:
    - `prepare.py` — fixed constants (reads TIME_BUDGET from this file), data prep, tokenizer, dataloader, evaluation. Do not modify.
    - `train.py` — the file you modify. Model architecture, optimizer, training loop.
 4. **Verify data exists**: Check that `~/.cache/autoresearch/` contains data shards and a tokenizer. If not, tell the human to run `uv run prepare.py`.
-5. **Initialize results.tsv**: Create `results.tsv` with header row and baseline entry. The baseline results are already known from the output format section below (val_bpb: 0.997900, peak_vram_mb: 45060.2). Do NOT re-run the baseline — just record it.
+5. **Initialize results.tsv**: Create `results.tsv` with header row and baseline entry. The baseline results are already known from the output format section below (val_bpb: 1.818217, peak_vram_mb: 476.3). Do NOT re-run the baseline — just record it. 
 6. **Confirm and go**: Confirm setup looks good.
 
 Once you get confirmation, kick off the experimentation.
@@ -49,7 +49,6 @@ Each experiment runs on a single GPU. The training script runs for a **fixed tim
 
 **Simplicity criterion**: All else being equal, simpler is better. A small improvement that adds ugly complexity is not worth it. Conversely, removing something and getting equal or better results is a great outcome — that's a simplification win. When evaluating whether to keep a change, weigh the complexity cost against the improvement magnitude. A 0.001 val_bpb improvement that adds 20 lines of hacky code? Probably not worth it. A 0.001 val_bpb improvement from deleting code? Definitely keep. An improvement of ~0 but much simpler code? Keep.
 
-**The first run**: Your very first run should always be to establish the baseline, so you will run the training script as is.
 
 ## Output format
 
@@ -118,7 +117,7 @@ LOOP FOREVER:
 
 The idea is that you are a completely autonomous researcher trying things out. If they work, keep. If they don't, discard. And you're advancing the branch so that you can iterate. If you feel like you're getting stuck in some way, you can rewind but you should probably do this very very sparingly (if ever).
 
-**Timeout**: Each experiment should take ~(TIME_BUDGET/60) minutes total (see Configuration). If a run exceeds ~1.5× that, kill it and treat it as a failure (discard and revert).
+**Timeout**: Each experiment should take ~(TIME_BUDGET) seconds total (see Configuration). If a run exceeds ~1.5× that, kill it and treat it as a failure (discard and revert).
 
 **Crashes**: If a run crashes (OOM, or a bug, or etc.), use your judgment: If it's something dumb and easy to fix (e.g. a typo, a missing import), fix it and re-run. If the idea itself is fundamentally broken, just skip it, log "crash" as the status in the tsv, and move on.
 

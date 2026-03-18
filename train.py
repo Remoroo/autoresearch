@@ -41,6 +41,7 @@ from prepare import MAX_SEQ_LEN, TIME_BUDGET, Tokenizer, make_dataloader, evalua
 # Small-model preset (set REMOROO_SMALL_MODEL=1): fewer layers, full attention, smaller batch.
 SMALL_MODEL = os.environ.get("REMOROO_SMALL_MODEL", "").lower() in ("1", "true", "yes")
 
+
 # ---------------------------------------------------------------------------
 # GPT Model
 # ---------------------------------------------------------------------------
@@ -576,12 +577,18 @@ if DEVICE == "mps":
 train_loader = make_dataloader(tokenizer, DEVICE_BATCH_SIZE, MAX_SEQ_LEN, "train")
 x, y, epoch = next(train_loader)  # prefetch first batch
 
+# Reserve fraction of total budget for evaluation (MPS eval is slow)
+EVAL_BUDGET_RATIO = 0.25 if DEVICE == "mps" else 0.15
+GRACE_SECONDS = 60  # buffer so train+eval finish before TIME_BUDGET is reached
+effective_budget = max(120, TIME_BUDGET - GRACE_SECONDS)
+TRAIN_BUDGET = int(effective_budget * (1 - EVAL_BUDGET_RATIO))
 # On MPS, log less often to reduce Python/terminal overhead
 LOG_EVERY_N_STEPS = 20 if DEVICE == "mps" else 1
-print(f"Time budget: {TIME_BUDGET}s")
+eval_reserve = effective_budget - TRAIN_BUDGET
+print(f"Time budget: {TIME_BUDGET}s total ({TRAIN_BUDGET}s train, ~{eval_reserve}s eval, {GRACE_SECONDS}s grace)")
 print(f"Gradient accumulation steps: {grad_accum_steps}")
 
-# Schedules (all based on progress = training_time / TIME_BUDGET)
+# Schedules (all based on progress = training_time / TRAIN_BUDGET)
 
 def get_lr_multiplier(progress):
     if progress < WARMUP_RATIO:
@@ -626,7 +633,7 @@ while True:
         x, y, epoch = next(train_loader)
 
     # Progress and schedules
-    progress = min(total_training_time / TIME_BUDGET, 1.0)
+    progress = min(total_training_time / TRAIN_BUDGET, 1.0)
     lrm = get_lr_multiplier(progress)
     muon_momentum = get_muon_momentum(step)
     muon_weight_decay = get_weight_decay(progress)
@@ -659,7 +666,7 @@ while True:
     pct_done = 100 * progress
     tok_per_sec = int(TOTAL_BATCH_SIZE / dt)
     mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE / dt / H100_BF16_PEAK_FLOPS
-    remaining = max(0, TIME_BUDGET - total_training_time)
+    remaining = max(0, TRAIN_BUDGET - total_training_time)
 
     if step % LOG_EVERY_N_STEPS == 0 or step < 3 or remaining <= 0:
         print(f"\rstep {step:05d} ({pct_done:.1f}%) | loss: {debiased_smooth_loss:.6f} | lrm: {lrm:.2f} | dt: {dt*1000:.0f}ms | tok/sec: {tok_per_sec:,} | mfu: {mfu:.1f}% | epoch: {epoch} | remaining: {remaining:.0f}s    ", end="", flush=True)
@@ -675,30 +682,39 @@ while True:
     step += 1
 
     # Time's up — but only stop after warmup steps so we don't count compilation
-    if step > 10 and total_training_time >= TIME_BUDGET:
+    if step > 10 and total_training_time >= TRAIN_BUDGET:
         break
 
 print()  # newline after \r training log
 
 total_tokens = step * TOTAL_BATCH_SIZE
 
-# Final eval (can take many minutes on MPS with no output — print progress to avoid SILENT_TIMEOUT)
+# Final eval: use remaining effective budget (TIME_BUDGET - grace) so we finish before total
 model.eval()
-eval_done = threading.Event()
-def _eval_progress():
-    n = 0
-    while not eval_done.wait(timeout=30):
-        n += 1
-        print(f"Validation in progress... ({n * 30}s elapsed)", flush=True)
-print("Running validation...", flush=True)
-_progress_thread = threading.Thread(target=_eval_progress, daemon=True)
-_progress_thread.start()
-try:
-    with autocast_ctx:
-        val_bpb = evaluate_bpb(model, tokenizer, DEVICE_BATCH_SIZE)
-finally:
-    eval_done.set()
-    _progress_thread.join(timeout=1)
+eval_deadline = t_start + effective_budget
+remaining = eval_deadline - time.time()
+if remaining <= 0:
+    print("No time left for validation (over budget)", flush=True)
+    val_bpb = float("nan")
+else:
+    eval_max_seconds = remaining
+    eval_done = threading.Event()
+
+    def _eval_progress():
+        n = 0
+        while not eval_done.wait(timeout=30):
+            n += 1
+            print(f"Validation in progress... ({n * 30}s elapsed)", flush=True)
+
+    print(f"Running validation (max {eval_max_seconds:.0f}s remaining)...", flush=True)
+    _progress_thread = threading.Thread(target=_eval_progress, daemon=True)
+    _progress_thread.start()
+    try:
+        with autocast_ctx:
+            val_bpb = evaluate_bpb(model, tokenizer, DEVICE_BATCH_SIZE, max_seconds=eval_max_seconds)
+    finally:
+        eval_done.set()
+        _progress_thread.join(timeout=1)
 
 # Final summary
 t_end = time.time()
