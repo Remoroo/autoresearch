@@ -9,6 +9,7 @@ os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 import gc
+import threading
 import time
 from dataclasses import dataclass, asdict
 
@@ -495,9 +496,9 @@ MATRIX_LR = 0.04        # learning rate for matrix parameters (Muon)
 SCALAR_LR = 0.5         # learning rate for per-layer scalars (Adam)
 WEIGHT_DECAY = 0.2      # cautious weight decay for Muon
 ADAM_BETAS = (0.8, 0.95) # Adam beta1, beta2
-WARMUP_RATIO = 0.0      # fraction of time budget for LR warmup
-WARMDOWN_RATIO = 0.5    # fraction of time budget for LR warmdown
-FINAL_LR_FRAC = 0.0     # final LR as fraction of initial
+WARMUP_RATIO = 0.02     # fraction of time budget for LR warmup
+WARMDOWN_RATIO = 0.65   # fraction of time budget for LR warmdown
+FINAL_LR_FRAC = 0.01    # final LR as fraction of initial
 
 # Model size: DEPTH is the main knob; lower = smaller/faster
 if SMALL_MODEL:
@@ -681,10 +682,23 @@ print()  # newline after \r training log
 
 total_tokens = step * TOTAL_BATCH_SIZE
 
-# Final eval
+# Final eval (can take many minutes on MPS with no output — print progress to avoid SILENT_TIMEOUT)
 model.eval()
-with autocast_ctx:
-    val_bpb = evaluate_bpb(model, tokenizer, DEVICE_BATCH_SIZE)
+eval_done = threading.Event()
+def _eval_progress():
+    n = 0
+    while not eval_done.wait(timeout=30):
+        n += 1
+        print(f"Validation in progress... ({n * 30}s elapsed)", flush=True)
+print("Running validation...", flush=True)
+_progress_thread = threading.Thread(target=_eval_progress, daemon=True)
+_progress_thread.start()
+try:
+    with autocast_ctx:
+        val_bpb = evaluate_bpb(model, tokenizer, DEVICE_BATCH_SIZE)
+finally:
+    eval_done.set()
+    _progress_thread.join(timeout=1)
 
 # Final summary
 t_end = time.time()
@@ -708,3 +722,26 @@ print(f"total_tokens_M:   {total_tokens / 1e6:.1f}")
 print(f"num_steps:        {step}")
 print(f"num_params_M:     {num_params / 1e6:.1f}")
 print(f"depth:            {DEPTH}")
+
+# --- REMOROO METRICS EMISSION ---
+import json
+import os
+metrics_dir = ".remoroo"
+os.makedirs(metrics_dir, exist_ok=True)
+metrics_file = os.path.join(metrics_dir, "metrics.jsonl")
+
+metrics_data = {
+    "val_bpb": float(f"{val_bpb:.6f}"),
+    "training_seconds": float(f"{total_training_time:.1f}"),
+    "total_seconds": float(f"{t_end - t_start:.1f}"),
+    "peak_vram_mb": float(f"{peak_vram_mb:.1f}"),
+    "mfu_percent": float(f"{steady_state_mfu:.2f}"),
+    "total_tokens_M": float(f"{total_tokens / 1e6:.1f}"),
+    "num_steps": int(step),
+    "num_params_M": float(f"{num_params / 1e6:.1f}"),
+    "depth": DEPTH,
+}
+
+with open(metrics_file, "a") as f:
+    f.write(json.dumps(metrics_data) + "\n")
+

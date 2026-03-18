@@ -2,6 +2,19 @@
 
 This is an experiment to have the LLM do its own research.
 
+## Configuration
+
+Single source of truth for runtime parameters. Edit here; all code and docs read from this file.
+
+| Parameter     | Value | Description                                  |
+|---------------|-------|----------------------------------------------|
+| TIME_BUDGET   | 3600  | Training time budget in seconds (60 minutes) |
+
+```
+TIME_BUDGET=3600
+```
+<!-- Edit the line above to change the training time budget. -->
+
 ## Setup
 
 To set up a new experiment, work with the user to:
@@ -10,7 +23,7 @@ To set up a new experiment, work with the user to:
 2. **Create the branch**: `git checkout -b autoresearch/<tag>` from current master.
 3. **Read the in-scope files**: The repo is small. Read these files for full context:
    - `README.md` — repository context.
-   - `prepare.py` — fixed constants, data prep, tokenizer, dataloader, evaluation. Do not modify.
+   - `prepare.py` — fixed constants (reads TIME_BUDGET from this file), data prep, tokenizer, dataloader, evaluation. Do not modify.
    - `train.py` — the file you modify. Model architecture, optimizer, training loop.
 4. **Verify data exists**: Check that `~/.cache/autoresearch/` contains data shards and a tokenizer. If not, tell the human to run `uv run prepare.py`.
 5. **Initialize results.tsv**: Create `results.tsv` with header row and baseline entry. The baseline results are already known from the output format section below (val_bpb: 0.997900, peak_vram_mb: 45060.2). Do NOT re-run the baseline — just record it.
@@ -20,17 +33,17 @@ Once you get confirmation, kick off the experimentation.
 
 ## Experimentation
 
-Each experiment runs on a single GPU. The training script runs for a **fixed time budget of 60 minutes** (wall clock training time, excluding startup/compilation). You launch it simply as: `uv run train.py`.
+Each experiment runs on a single GPU. The training script runs for a **fixed time budget** (see Configuration above; default 60 minutes). You launch it simply as: `uv run train.py`.
 
 **What you CAN do:**
 - Modify `train.py` — this is the only file you edit. Everything is fair game: model architecture, optimizer, hyperparameters, training loop, batch size, model size, etc.
 
 **What you CANNOT do:**
-- Modify `prepare.py`. It is read-only. It contains the fixed evaluation, data loading, tokenizer, and training constants (time budget, sequence length, etc).
+- Modify `prepare.py`. It is read-only. It contains the fixed evaluation, data loading, tokenizer, and training constants (sequence length, etc). The **time budget** lives in `program.md` — edit it there if you need a different duration.
 - Install new packages or add dependencies. You can only use what's already in `pyproject.toml`.
 - Modify the evaluation harness. The `evaluate_bpb` function in `prepare.py` is the ground truth metric.
 
-**The goal is simple: get the lowest val_bpb.** Since the time budget is fixed, you don't need to worry about training time — it's always 60 minutes. Everything is fair game: change the architecture, the optimizer, the hyperparameters, the batch size, the model size. The only constraint is that the code runs without crashing and finishes within the time budget.
+**The goal is simple: get the lowest val_bpb.** Since the time budget is fixed (set in Configuration above), you don't need to worry about training time — it's consistent across experiments. Everything is fair game: change the architecture, the optimizer, the hyperparameters, the batch size, the model size. The only constraint is that the code runs without crashing and finishes within the time budget.
 
 **VRAM** is a soft constraint. Some increase is acceptable for meaningful val_bpb gains, but it should not blow up dramatically.
 
@@ -55,7 +68,7 @@ num_params_M:     50.3
 depth:            8
 ```
 
-Note that the script is configured to always stop after 60 minutes, so depending on the computing platform of this computer the numbers might look different. You can extract the key metric from the log file:
+Note that the script stops after the configured TIME_BUDGET (see Configuration; default 60 minutes), so depending on the computing platform the numbers might look different. You can extract the key metric from the log file:
 
 ```
 grep "^val_bpb:" run.log
@@ -105,10 +118,10 @@ LOOP FOREVER:
 
 The idea is that you are a completely autonomous researcher trying things out. If they work, keep. If they don't, discard. And you're advancing the branch so that you can iterate. If you feel like you're getting stuck in some way, you can rewind but you should probably do this very very sparingly (if ever).
 
-**Timeout**: Each experiment should take ~60 minutes total (+ a few seconds for startup and eval overhead). If a run exceeds 90 minutes, kill it and treat it as a failure (discard and revert).
+**Timeout**: Each experiment should take ~(TIME_BUDGET/60) minutes total (see Configuration). If a run exceeds ~1.5× that, kill it and treat it as a failure (discard and revert).
 
 **Crashes**: If a run crashes (OOM, or a bug, or etc.), use your judgment: If it's something dumb and easy to fix (e.g. a typo, a missing import), fix it and re-run. If the idea itself is fundamentally broken, just skip it, log "crash" as the status in the tsv, and move on.
 
 **NEVER STOP**: Once the experiment loop has begun (after the initial setup), do NOT pause to ask the human if you should continue. Do NOT ask "should I keep going?" or "is this a good stopping point?". The human might be asleep, or gone from a computer and expects you to continue working *indefinitely* until you are manually stopped. You are autonomous. If you run out of ideas, think harder — read papers referenced in the code, re-read the in-scope files for new angles, try combining previous near-misses, try more radical architectural changes. The loop runs until the human interrupts you, period.
 
-As an example use case, a user might leave you running while they sleep. If each experiment takes you ~60 minutes then you can run approx 1/hour, for a total of about 8 over the duration of the average human sleep. The user then wakes up to experimental results, all completed by you while they slept!
+As an example use case, a user might leave you running while they sleep. If each experiment takes you ~(TIME_BUDGET/60) minutes then you can run approx 1/hour, for a total of about 8 over the duration of the average human sleep. The user then wakes up to experimental results, all completed by you while they slept!

@@ -47,7 +47,21 @@ else:
     MAX_SEQ_LEN = 1024 if DEVICE == "mps" else 2048
     EVAL_TOKENS = 40 * 524288
 
-TIME_BUDGET = 3600        # training time budget in seconds (60 minutes)
+
+def _load_time_budget():
+    """Read TIME_BUDGET from program.md (single source of truth)."""
+    import re
+    prog = os.path.join(os.path.dirname(os.path.abspath(__file__)), "program.md")
+    if os.path.exists(prog):
+        with open(prog) as f:
+            for line in f:
+                m = re.match(r"^TIME_BUDGET\s*=\s*(\d+)\s*$", line.strip())
+                if m:
+                    return int(m.group(1))
+    return 3600  # default
+
+
+TIME_BUDGET = _load_time_budget()
 
 # ---------------------------------------------------------------------------
 # Configuration
