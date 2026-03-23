@@ -381,7 +381,8 @@ def evaluate_bpb(model, tokenizer, batch_size, max_seconds=None):
     are excluded from both sums.
     Uses fixed MAX_SEQ_LEN so results are comparable across configs.
 
-    If max_seconds is set, stops early when elapsed time exceeds it.
+    If max_seconds is set, stops early when elapsed monotonic time exceeds it
+    (callers e.g. train.py pass remaining wall time from TIME_BUDGET / effective_budget).
     Partial evals are valid but less precise; full evals use all EVAL_TOKENS.
     """
     token_bytes = get_token_bytes(device=DEVICE)
@@ -389,9 +390,11 @@ def evaluate_bpb(model, tokenizer, batch_size, max_seconds=None):
     steps = EVAL_TOKENS // (batch_size * MAX_SEQ_LEN)
     total_nats = 0.0
     total_bytes = 0
-    t0 = time.time()
+    eval_deadline_mono = None
+    if max_seconds is not None and max_seconds > 0:
+        eval_deadline_mono = time.monotonic() + float(max_seconds)
     for _ in range(steps):
-        if max_seconds is not None and (time.time() - t0) >= max_seconds:
+        if eval_deadline_mono is not None and time.monotonic() >= eval_deadline_mono:
             break
         x, y, _ = next(val_loader)
         loss_flat = model(x, y, reduction='none').view(-1)
@@ -417,6 +420,7 @@ if __name__ == "__main__":
     num_shards = MAX_SHARD if args.num_shards == -1 else args.num_shards
 
     print(f"Cache directory: {CACHE_DIR}")
+    print(f"TIME_BUDGET from program.md: {TIME_BUDGET}s (used by train.py for train+val; prepare download/tokenizer are not capped)")
     print()
 
     # Step 1: Download data

@@ -8,10 +8,10 @@ Single source of truth for runtime parameters. Edit here; all code and docs read
 
 | Parameter     | Value | Description                                  |
 |---------------|-------|----------------------------------------------|
-| TIME_BUDGET   | 1200  | Training time budget in seconds (20 minutes) |
+| TIME_BUDGET   | 300  | Training time budget in seconds (5 minutes) |
 
 ```
-TIME_BUDGET=1200
+TIME_BUDGET=300
 ```
 <!-- Edit the line above to change the training time budget. -->
 
@@ -26,14 +26,14 @@ To set up a new experiment, work with the user to:
    - `prepare.py` — fixed constants (reads TIME_BUDGET from this file), data prep, tokenizer, dataloader, evaluation. Do not modify.
    - `train.py` — the file you modify. Model architecture, optimizer, training loop.
 4. **Verify data exists**: Check that `~/.cache/autoresearch/` contains data shards and a tokenizer. If not, tell the human to run `uv run prepare.py`.
-5. **Initialize results.tsv**: Create `results.tsv` with header row and baseline entry. The baseline results are already known from the output format section below (val_bpb: 1.818217, peak_vram_mb: 476.3). Do NOT re-run the baseline — just record it. 
+5. **Initialize results.tsv**: Create `results.tsv` with header row and baseline entry. The baseline results are already known from the output format section below (val_bpb: 2.239626, peak_vram_mb: 476.3). Do NOT re-run the baseline — just record it. 
 6. **Confirm and go**: Confirm setup looks good.
 
 Once you get confirmation, kick off the experimentation.
 
 ## Experimentation
 
-Each experiment runs on a single GPU. The training script runs for a **fixed time budget** (see Configuration above; default 60 minutes). You launch it simply as: `uv run train.py`.
+Each experiment runs on a single GPU. The training script runs for a **fixed time budget** (see Configuration above). You launch it simply as: `uv run train.py`.
 
 **What you CAN do:**
 - Modify `train.py` — this is the only file you edit. Everything is fair game: model architecture, optimizer, hyperparameters, training loop, batch size, model size, etc.
@@ -49,6 +49,7 @@ Each experiment runs on a single GPU. The training script runs for a **fixed tim
 
 **Simplicity criterion**: All else being equal, simpler is better. A small improvement that adds ugly complexity is not worth it. Conversely, removing something and getting equal or better results is a great outcome — that's a simplification win. When evaluating whether to keep a change, weigh the complexity cost against the improvement magnitude. A 0.001 val_bpb improvement that adds 20 lines of hacky code? Probably not worth it. A 0.001 val_bpb improvement from deleting code? Definitely keep. An improvement of ~0 but much simpler code? Keep.
 
+**Hardware and time budget**: Pay attention to hardware and time-budget constraints. Use the Execution line and run outcomes (OOM, step times, memory) to design experiments that run effectively on this machine.
 
 ## Output format
 

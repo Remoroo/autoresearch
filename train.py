@@ -579,7 +579,7 @@ x, y, epoch = next(train_loader)  # prefetch first batch
 
 # Reserve fraction of total budget for evaluation (MPS eval is slow)
 EVAL_BUDGET_RATIO = 0.25 if DEVICE == "mps" else 0.15
-GRACE_SECONDS = 60  # buffer so train+eval finish before TIME_BUDGET is reached
+GRACE_SECONDS = 10  # buffer so train+eval finish before TIME_BUDGET is reached
 effective_budget = max(120, TIME_BUDGET - GRACE_SECONDS)
 TRAIN_BUDGET = int(effective_budget * (1 - EVAL_BUDGET_RATIO))
 # On MPS, log less often to reduce Python/terminal overhead
@@ -621,7 +621,10 @@ def sync_device():
     elif DEVICE == "mps":
         torch.mps.synchronize()
 
+train_wall_deadline = t_start + TRAIN_BUDGET
 while True:
+    if time.time() >= train_wall_deadline:
+        break
     sync_device()
     t0 = time.time()
     for micro_step in range(grad_accum_steps):
@@ -632,8 +635,11 @@ while True:
         loss.backward()
         x, y, epoch = next(train_loader)
 
-    # Progress and schedules
-    progress = min(total_training_time / TRAIN_BUDGET, 1.0)
+    # Progress and schedules: wall from process start (setup + warmup) and measured loop
+    # time both consume TRAIN_BUDGET; use the tighter (larger) progress so LR tracks real burn.
+    wall_progress = (time.time() - t_start) / TRAIN_BUDGET if TRAIN_BUDGET > 0 else 1.0
+    compute_progress = total_training_time / TRAIN_BUDGET if TRAIN_BUDGET > 0 else 1.0
+    progress = min(1.0, max(wall_progress, compute_progress))
     lrm = get_lr_multiplier(progress)
     muon_momentum = get_muon_momentum(step)
     muon_weight_decay = get_weight_decay(progress)
@@ -681,8 +687,9 @@ while True:
 
     step += 1
 
-    # Time's up — but only stop after warmup steps so we don't count compilation
-    if step > 10 and total_training_time >= TRAIN_BUDGET:
+    # Stop when compute budget met (after warmup) or wall clock hits training slice of
+    # effective budget (includes setup + warmup so we always leave eval_reserve for val).
+    if (step > 10 and total_training_time >= TRAIN_BUDGET) or time.time() >= train_wall_deadline:
         break
 
 print()  # newline after \r training log
