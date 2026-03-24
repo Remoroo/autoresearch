@@ -8,10 +8,10 @@ Single source of truth for runtime parameters. Edit here; all code and docs read
 
 | Parameter     | Value | Description                                  |
 |---------------|-------|----------------------------------------------|
-| TIME_BUDGET   | 300  | Training time budget in seconds (5 minutes) |
+| TIME_BUDGET   | 900  | Training time budget in seconds (15 minutes) |
 
 ```
-TIME_BUDGET=300
+TIME_BUDGET=900
 ```
 <!-- Edit the line above to change the training time budget. -->
 
