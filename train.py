@@ -490,7 +490,7 @@ WINDOW_PATTERN = "L" if SMALL_MODEL else "SSSL"  # L=full attention (simpler); S
 if SMALL_MODEL:
     TOTAL_BATCH_SIZE = 2**14   # ~16K tokens per step
 else:
-    TOTAL_BATCH_SIZE = 2**14 if DEVICE == "mps" else 2**19
+    TOTAL_BATCH_SIZE = 2**15 if DEVICE == "mps" else 2**19
 EMBEDDING_LR = 0.6      # learning rate for token embeddings (Adam)
 UNEMBEDDING_LR = 0.004  # learning rate for lm_head (Adam)
 MATRIX_LR = 0.04        # learning rate for matrix parameters (Muon)
