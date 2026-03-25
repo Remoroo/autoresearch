@@ -507,7 +507,7 @@ if SMALL_MODEL:
     # Compensate short MAX_SEQ_LEN with larger device batch so tokens per step stays reasonable
     DEVICE_BATCH_SIZE = 64  # 64 * 256 = 16K tokens when MAX_SEQ_LEN=256
 else:
-    DEPTH = 8
+    DEPTH = 10
     DEVICE_BATCH_SIZE = 16 if DEVICE == "mps" else 128
 
 # ---------------------------------------------------------------------------
