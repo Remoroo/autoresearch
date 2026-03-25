@@ -490,7 +490,12 @@ WINDOW_PATTERN = "L" if SMALL_MODEL else "SSSL"  # L=full attention (simpler); S
 if SMALL_MODEL:
     TOTAL_BATCH_SIZE = 2**14   # ~16K tokens per step
 else:
-    TOTAL_BATCH_SIZE = 2**15 if DEVICE == "mps" else 2**19
+    if DEVICE == "cuda":
+        TOTAL_BATCH_SIZE = 2**19
+    elif DEVICE == "mps":
+        TOTAL_BATCH_SIZE = 2**15
+    else:  # CPU
+        TOTAL_BATCH_SIZE = 2**12  # Much smaller for CPU
 EMBEDDING_LR = 0.6      # learning rate for token embeddings (Adam)
 UNEMBEDDING_LR = 0.004  # learning rate for lm_head (Adam)
 MATRIX_LR = 0.04        # learning rate for matrix parameters (Muon)
@@ -507,8 +512,15 @@ if SMALL_MODEL:
     # Compensate short MAX_SEQ_LEN with larger device batch so tokens per step stays reasonable
     DEVICE_BATCH_SIZE = 64  # 64 * 256 = 16K tokens when MAX_SEQ_LEN=256
 else:
-    DEPTH = 10
-    DEVICE_BATCH_SIZE = 16 if DEVICE == "mps" else 128
+    if DEVICE == "cuda":
+        DEPTH = 10
+        DEVICE_BATCH_SIZE = 128
+    elif DEVICE == "mps":
+        DEPTH = 10
+        DEVICE_BATCH_SIZE = 16
+    else:  # CPU
+        DEPTH = 6  # Much smaller for CPU
+        DEVICE_BATCH_SIZE = 4
 
 # ---------------------------------------------------------------------------
 # Setup: tokenizer, model, optimizer, dataloader

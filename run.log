@@ -1,32 +1,26 @@
+warning: Ignoring existing virtual environment linked to non-existent Python interpreter: .venv/bin/python3 -> python
+Downloading cpython-3.10.20-linux-aarch64-gnu (download) (28.8MiB)
+ Downloaded cpython-3.10.20-linux-aarch64-gnu (download)
+Using CPython 3.10.20
+Removed virtual environment at: .venv
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 51 packages in 36.16s
+/Users/adham/Downloads/remoroo_offline_engine/autoresearch/.venv/lib/python3.10/site-packages/torch/amp/autocast_mode.py:287: UserWarning: In CPU autocast, but the target dtype is not supported. Disabling autocast.
+CPU Autocast only supports dtype of torch.bfloat16, torch.float16 currently.
+  warnings.warn(error_message)
 Vocab size: 8,192
-Model config: {'sequence_len': 1024, 'vocab_size': 8192, 'n_layer': 8, 'n_head': 4, 'n_kv_head': 4, 'n_embd': 512, 'window_pattern': 'SSSL'}
+Model config: {'sequence_len': 2048, 'vocab_size': 8192, 'n_layer': 10, 'n_head': 5, 'n_kv_head': 5, 'n_embd': 640, 'window_pattern': 'SSSL'}
 Parameter counts:
-  wte                     : 4,194,304
-  value_embeds            : 16,777,216
-  lm_head                 : 4,194,304
-  transformer_matrices    : 25,166,336
-  scalars                 : 16
-  total                   : 50,332,176
-Estimated FLOPs per token: 2.076211e+08
-Scaling AdamW LRs by 1/sqrt(512/768) = 1.224745
-Time budget: 900s total (667s train, ~223s eval, 10s grace)
+  wte                     : 5,242,880
+  value_embeds            : 26,214,400
+  lm_head                 : 5,242,880
+  transformer_matrices    : 49,152,800
+  scalars                 : 20
+  total                   : 85,852,980
+Estimated FLOPs per token: 4.286102e+08
+Scaling AdamW LRs by 1/sqrt(640/768) = 1.095445
+Time budget: 900s total (756s train, ~134s eval, 10s grace)
 Gradient accumulation steps: 2
-step 00000 (2.2%) | loss: 9.011475 | lrm: 1.00 | dt: 16461ms | tok/sec: 1,990 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00001 (4.7%) | loss: 9.138037 | lrm: 1.00 | dt: 16029ms | tok/sec: 2,044 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00002 (7.2%) | loss: 8.958633 | lrm: 1.00 | dt: 17125ms | tok/sec: 1,913 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00020 (58.8%) | loss: 6.423238 | lrm: 1.00 | dt: 13586ms | tok/sec: 2,411 | mfu: 0.1% | epoch: 1 | remaining: 494s    
-Running validation (max 214s remaining)...
-Validation in progress... (30s elapsed)
-Validation in progress... (60s elapsed)
-Validation in progress... (90s elapsed)
-Validation in progress... (120s elapsed)
-Validation in progress... (150s elapsed)
-Validation in progress... (180s elapsed)
-Validation in progress... (210s elapsed)
----
-val_bpb:          1.991043
-training_seconds: 454.1
-total_seconds:    890.3
-peak_vram_mb:     444.3
-mfu_percent:      0.04
-total_tokens_M:   1.2
-num_steps:        37
-num_params_M:     50.3
-depth:            8
