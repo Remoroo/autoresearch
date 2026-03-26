@@ -1,26 +1,25 @@
-warning: Ignoring existing virtual environment linked to non-existent Python interpreter: .venv/bin/python3 -> python
-Downloading cpython-3.10.20-linux-aarch64-gnu (download) (28.8MiB)
- Downloaded cpython-3.10.20-linux-aarch64-gnu (download)
-Using CPython 3.10.20
-Removed virtual environment at: .venv
-Creating virtual environment at: .venv
-warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
-         If the cache and target directories are on different filesystems, hardlinking may not be supported.
-         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
-Installed 51 packages in 36.16s
-/Users/adham/Downloads/remoroo_offline_engine/autoresearch/.venv/lib/python3.10/site-packages/torch/amp/autocast_mode.py:287: UserWarning: In CPU autocast, but the target dtype is not supported. Disabling autocast.
-CPU Autocast only supports dtype of torch.bfloat16, torch.float16 currently.
-  warnings.warn(error_message)
 Vocab size: 8,192
-Model config: {'sequence_len': 2048, 'vocab_size': 8192, 'n_layer': 10, 'n_head': 5, 'n_kv_head': 5, 'n_embd': 640, 'window_pattern': 'SSSL'}
+Model config: {'sequence_len': 256, 'vocab_size': 8192, 'n_layer': 4, 'n_head': 2, 'n_kv_head': 2, 'n_embd': 256, 'window_pattern': 'SSSL'}
 Parameter counts:
-  wte                     : 5,242,880
-  value_embeds            : 26,214,400
-  lm_head                 : 5,242,880
-  transformer_matrices    : 49,152,800
-  scalars                 : 20
-  total                   : 85,852,980
-Estimated FLOPs per token: 4.286102e+08
-Scaling AdamW LRs by 1/sqrt(640/768) = 1.095445
-Time budget: 900s total (756s train, ~134s eval, 10s grace)
-Gradient accumulation steps: 2
+  wte                     : 2,097,152
+  value_embeds            : 4,194,304
+  lm_head                 : 2,097,152
+  transformer_matrices    : 3,145,856
+  scalars                 : 8
+  total                   : 11,534,472
+Estimated FLOPs per token: 3.342413e+07
+Scaling AdamW LRs by 1/sqrt(256/768) = 1.732051
+Time budget: 900s total (667s train, ~223s eval, 10s grace)
+Gradient accumulation steps: 1
+step 00000 (0.2%) | loss: 9.010900 | lrm: 0.05 | dt: 2434ms | tok/sec: 6,731 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00001 (0.6%) | loss: 9.006360 | lrm: 0.11 | dt: 1595ms | tok/sec: 10,273 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00002 (0.8%) | loss: 8.995903 | lrm: 0.16 | dt: 1574ms | tok/sec: 10,410 | mfu: 0.0% | epoch: 1 | remaining: 667s    step 00020 (5.1%) | loss: 7.006631 | lrm: 1.00 | dt: 1586ms | tok/sec: 10,328 | mfu: 0.0% | epoch: 1 | remaining: 651s    step 00040 (9.7%) | loss: 6.043555 | lrm: 1.00 | dt: 1570ms | tok/sec: 10,435 | mfu: 0.0% | epoch: 1 | remaining: 620s    step 00060 (14.4%) | loss: 5.636731 | lrm: 1.00 | dt: 1529ms | tok/sec: 10,714 | mfu: 0.0% | epoch: 1 | remaining: 589s    step 00080 (19.0%) | loss: 5.414860 | lrm: 1.00 | dt: 1555ms | tok/sec: 10,538 | mfu: 0.0% | epoch: 1 | remaining: 558s    step 00100 (23.7%) | loss: 5.241354 | lrm: 1.00 | dt: 1554ms | tok/sec: 10,546 | mfu: 0.0% | epoch: 1 | remaining: 527s    step 00120 (28.4%) | loss: 5.106634 | lrm: 1.00 | dt: 1588ms | tok/sec: 10,318 | mfu: 0.0% | epoch: 1 | remaining: 495s    step 00140 (33.1%) | loss: 4.997160 | lrm: 1.00 | dt: 1610ms | tok/sec: 10,177 | mfu: 0.0% | epoch: 1 | remaining: 464s    step 00160 (37.8%) | loss: 4.901921 | lrm: 1.00 | dt: 1554ms | tok/sec: 10,543 | mfu: 0.0% | epoch: 1 | remaining: 433s    step 00180 (42.5%) | loss: 4.812775 | lrm: 1.00 | dt: 1564ms | tok/sec: 10,473 | mfu: 0.0% | epoch: 1 | remaining: 401s    step 00200 (47.2%) | loss: 4.725516 | lrm: 1.00 | dt: 1549ms | tok/sec: 10,578 | mfu: 0.0% | epoch: 1 | remaining: 370s    step 00220 (51.9%) | loss: 4.658443 | lrm: 1.00 | dt: 1522ms | tok/sec: 10,765 | mfu: 0.0% | epoch: 1 | remaining: 339s    step 00240 (56.5%) | loss: 4.607701 | lrm: 1.00 | dt: 1550ms | tok/sec: 10,572 | mfu: 0.0% | epoch: 1 | remaining: 308s    step 00260 (61.2%) | loss: 4.550834 | lrm: 1.00 | dt: 1585ms | tok/sec: 10,334 | mfu: 0.0% | epoch: 1 | remaining: 277s    step 00280 (65.9%) | loss: 4.505249 | lrm: 1.00 | dt: 1561ms | tok/sec: 10,495 | mfu: 0.0% | epoch: 1 | remaining: 246s    step 00300 (70.6%) | loss: 4.478883 | lrm: 1.00 | dt: 1584ms | tok/sec: 10,344 | mfu: 0.0% | epoch: 1 | remaining: 214s    step 00320 (75.3%) | loss: 4.429626 | lrm: 1.00 | dt: 1600ms | tok/sec: 10,241 | mfu: 0.0% | epoch: 1 | remaining: 183s    step 00340 (79.9%) | loss: 4.424789 | lrm: 1.00 | dt: 1537ms | tok/sec: 10,658 | mfu: 0.0% | epoch: 1 | remaining: 152s    step 00360 (84.6%) | loss: 4.398186 | lrm: 1.00 | dt: 1545ms | tok/sec: 10,606 | mfu: 0.0% | epoch: 1 | remaining: 121s    step 00380 (89.2%) | loss: 4.355538 | lrm: 1.00 | dt: 1535ms | tok/sec: 10,674 | mfu: 0.0% | epoch: 1 | remaining: 90s    step 00400 (94.0%) | loss: 4.330359 | lrm: 0.66 | dt: 1582ms | tok/sec: 10,359 | mfu: 0.0% | epoch: 1 | remaining: 58s    step 00420 (98.7%) | loss: 4.282703 | lrm: 0.26 | dt: 1575ms | tok/sec: 10,401 | mfu: 0.0% | epoch: 1 | remaining: 27s    
+Running validation (max 223s remaining)...
+---
+val_bpb:          1.548555
+training_seconds: 648.0
+total_seconds:    678.4
+peak_vram_mb:     125.5
+mfu_percent:      0.04
+total_tokens_M:   7.0
+num_steps:        426
+num_params_M:     11.5
+depth:            4
