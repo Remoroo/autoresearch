@@ -1,5 +1,0 @@
-commit	val_bpb	memory_gb	status	description
-baseline	2.239626	0.5	keep	baseline (from program.md)
-9138841	2.002484	0.4	keep	increase batch size: TOTAL_BATCH_SIZE 2**14->2**15 for more training steps
-cfcb006	1.996000	0.4	keep	adjust LR schedule: shorter warmdown (35%->30%), higher final LR (5%->8%)
-39d9492	1.991043	0.4	keep	adjust LR schedule: shorter warmdown (30%->25%), higher final LR (8%->10%)

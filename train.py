@@ -36,10 +36,9 @@ def get_device():
 DEVICE = get_device()
 DTYPE = torch.bfloat16 if DEVICE != "cpu" else torch.float32
 
-from prepare import MAX_SEQ_LEN, TIME_BUDGET, Tokenizer, make_dataloader, evaluate_bpb
+from prepare import MAX_SEQ_LEN, TIME_BUDGET, Tokenizer, make_dataloader, evaluate_bpb, SMALL_MODEL
 
 # Small-model preset (set REMOROO_SMALL_MODEL=1): fewer layers, full attention, smaller batch.
-SMALL_MODEL = os.environ.get("REMOROO_SMALL_MODEL", "").lower() in ("1", "true", "yes")
 
 
 # ---------------------------------------------------------------------------

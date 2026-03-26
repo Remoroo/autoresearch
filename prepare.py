@@ -34,8 +34,7 @@ DEVICE = get_device()
 
 # Small-model preset: set REMOROO_SMALL_MODEL=1 for lower memory and faster runs.
 # Uses shorter context, fewer eval tokens, and (optional) smaller vocab when training tokenizer.
-SMALL_MODEL = os.environ.get("REMOROO_SMALL_MODEL", "").lower() in ("1", "true", "yes")
-
+SMALL_MODEL = True
 # ---------------------------------------------------------------------------
 # Constants (fixed, do not modify)
 # ---------------------------------------------------------------------------
