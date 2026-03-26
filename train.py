@@ -483,7 +483,7 @@ class MuonAdamW(torch.optim.Optimizer):
 # Model architecture
 ASPECT_RATIO = 64       # model_dim = depth * ASPECT_RATIO
 HEAD_DIM = 128          # target head dimension for attention
-WINDOW_PATTERN = "L" if SMALL_MODEL else "SSSL"  # L=full attention (simpler); SSSL=banded (efficient for large)
+WINDOW_PATTERN = "SSSL" if SMALL_MODEL else "SSSL"  # Try banded attention even for small model
 
 # Optimization: TOTAL_BATCH_SIZE in powers of 2; lower for small models
 if SMALL_MODEL:
